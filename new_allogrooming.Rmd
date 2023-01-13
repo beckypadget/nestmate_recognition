@@ -1,0 +1,53 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Model
+```{r}
+library(brms)
+allogrooming <- read.csv("Data/allogrooming_all.csv")
+allogrooming$proportion <- allogrooming$proportion/100 # make percentages proportions
+allogrooming$day <- as.factor(allogrooming$day)
+allogrooming$code <- as.factor(allogrooming$code)
+allogrooming$treatment <- as.factor(allogrooming$treatment)
+allogrooming$wood <- as.factor(allogrooming$wood)
+allogrooming$inbred <- as.factor(allogrooming$inbred)
+
+options(buildtools.check = function(action) TRUE) # Prevents opening of dialog box to ask about re-starting R between each model run.
+priors <- prior(normal(0, 2.5), class="b")
+# Run garbage collection (gc()) between running models to prevent brms crashing R.
+
+gc()
+allogrooming_full <- brm(proportion ~ 
+                           treatment + treatment:wood +
+                           size.1 + inbred +
+                          (1 | day) + (1 | code) + (1|order),
+                         data = allogrooming,
+                         family = zero_inflated_beta(),
+                         prior = priors,
+                         save_all_pars = TRUE,
+                         iter = 5000,
+                         cores = 4,
+                         control = list(adapt_delta = 0.99,
+                                        max_treedepth = 15))
+allogrooming_full_posterior <- as.matrix(allogrooming_full)
+saveRDS(allogrooming_full, "allogrooming_full.Rds")
+allogrooming_full <- readRDS("allogrooming_full.Rds")
+allogrooming_full_posterior <- as.matrix(allogrooming_full)
+```
+
+## Plot overview
+```{r}
+library(bayesplot)
+library(ggplot2)
+# allogrooming
+pp_check(allogrooming_full, "stat_grouped", group="treatment")
+
+allo_full <- mcmc_areas(allogrooming_full, 
+                   pars = c("b_treatment1", "b_treatment1:woodD", "b_size.1", "b_inbred1"),
+                   prob=0.89) +
+              ggtitle("Full")
+allo_full
+```
+

@@ -5,10 +5,14 @@ pp_check(startle_treat, "stat_grouped", group="treatment")
 # pp_check(startle_size, "stat_grouped", group="size.1")
 
 startle_full_plot <- mcmc_areas(startle_full, 
-                       pars = c("treatment1", "treatment1:wood_typeD", "size.1"),
+                       pars = c("treatment1", "treatment1:wood_typeD", "size.1", "inbred1"),
                        prob=0.89) +
-  ggtitle("Full")
+  ggtitle("With inbreeding")
 
+startle_noinbred_plot <- mcmc_areas(startle_noinbred, 
+                                pars = c("treatment1", "treatment1:wood_typeD", "size.1"),
+                                prob=0.89) +
+  ggtitle("Without inbreeding")
 
 startle_treatment_plot <- mcmc_areas(startle_treat,
                             pars = c("treatment1", "treatment1:wood_typeD"),
@@ -35,6 +39,12 @@ null_plot <- mcmc_areas(startle_null, prob=0.89) +
   ggtitle("Intercept only")
 
 ((startle_full_plot | startle_noint_plot) / (startle_treatment_plot | startle_size_plot))
+
+startle_full_plot | startle_noinbred_plot
+
+bs_full <- bridgesampling::bridge_sampler(startle_full)
+
+bayesfactor(startle_full, startle_noinbred)
 
 startle_comparison <- bayesfactor_models(startle_full, startle_treat, startle_treatonly, startle_noint, startle_size, denominator = startle_null)
 startle_comparison

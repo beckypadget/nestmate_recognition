@@ -1,16 +1,19 @@
+library(bayesplot)
+library(ggplot2)
+library(patchwork)
+library(bayestestR)
 # allogrooming
 pp_check(allogrooming_full, "stat_grouped", group="treatment")
 pp_check(allogrooming_null)
 pp_check(allogrooming_treat, "stat_grouped", group="treatment")
 # pp_check(allogrooming_size, "stat_grouped", group="size.1")
 
-pairs(allogrooming_size)
-
+# pairs(allogrooming_size)
 allo_full <- mcmc_areas(allogrooming_full, 
-                   pars = c("b_treatment1", "b_treatment1:wood_typeD", "b_size.1"),
+                   pars = c("b_treatment1", "b_treatment1:wood_typeD", "b_treatment1:wood_typeS", "b_size.1", "b_inbred1"),
                    prob=0.89) +
-              ggtitle("Full")
-allo_full
+                   # scale_y_discrete(labels=(c("Newcomer identity", "Newcomer identity:wood type", "Relative size", "Inbreeding status"))) +
+                   ggtitle("With inbreeding")
 
 allo_treatment <- mcmc_areas(allogrooming_treat,
                         pars = c("b_treatment1", "b_treatment1:wood_typeD"),
@@ -26,16 +29,37 @@ allo_size <- mcmc_areas(allogrooming_size,
                    pars = c("b_size.1"),
                    prob = 0.89) +
               ggtitle("Size only")
-plot(allogrooming_size)
+
+allo_noinbred <- mcmc_areas(allogrooming_noinbred,
+                        pars = c("b_treatment1", "b_treatment1:wood_typeD", "b_size.1"),
+                        prob = 0.89) +
+                        scale_y_discrete(labels=(c("Newcomer identity", "Newcomer identity:wood type", "Relative size"))) +
+                        ggtitle("Without inbreeding")
+
+
 null_p <- mcmc_areas(allogrooming_null, prob=0.89) +
               ggtitle("Intercept only")
   
-((allo_full | allo_noint) / (allo_treatment | allo_size))
+((allo_full | allo_noint) / (allo_treatment | allo_size | allo_inbred))
 
-allo_comparison <- bayesfactor_models(allogrooming_full, allogrooming_treat, allogrooming_treatonly, allogrooming_noint, allogrooming_size, denominator = allogrooming_null)
+allo_full | allo_noinbred
+
+allo_comparison <- bayesfactor_models(allogrooming_full, allogrooming_treat, allogrooming_treatonly, allogrooming_noint, allogrooming_size, allogrooming_inbred, allogrooming_noinbred ,denominator = allogrooming_null)
 allo_comparison
 allo_inclusion <- bayesfactor_inclusion(allo_comparison)
 allo_inclusion
+
+bayes_factor(allogrooming_full, allogrooming_noinbred)
+bayes_factor(allogrooming_full, allogrooming_super)
+p_super <- mcmc_areas(allogrooming_super, pars = colnames(allogrooming_super_posterior)[1:56])
+
+colnames(allogrooming_super_posterior)[1:56]
+
+p1 <- mcmc_areas(allogrooming_full, pars = c("b_treatment1", "b_treatment1:wood_typeD", "b_size.1", "b_inbred1"))
+p2 <- mcmc_areas(allogrooming_noinbred, pars = c("b_treatment1", "b_treatment1:wood_typeD", "b_size.1"))
+
+(p1 | p2)
+
 
 #### Effect size ####
 allo_treatment_effect <- plogis(allogrooming_full_posterior[,"b_Intercept"] + allogrooming_full_posterior[,"b_treatment1"]) - plogis(allogrooming_full_posterior[,"b_Intercept"])
@@ -52,6 +76,12 @@ median(allo_interaction_effect)
 allo_size_effect <- plogis(allogrooming_full_posterior[,"b_Intercept"] + allogrooming_full_posterior[,"b_size.1"]*1.5) - plogis(allogrooming_full_posterior[,"b_Intercept"] + allogrooming_full_posterior[,"b_size.1"]*1.6)
 median(allo_size_effect)*100
 
+median(allogrooming$size.1)
+
+allo_size_effect_ni <- plogis(allogrooming_noinbred_posterior[,"b_Intercept"] + allogrooming_noinbred_posterior[,"b_size.1"]*1.5) - plogis(allogrooming_noinbred_posterior[,"b_Intercept"] + allogrooming_noinbred_posterior[,"b_size.1"]*1.6)
+median(allo_size_effect_ni)*100
+
+
 allo_size_effects = c()
 for(i in seq(0.6, 1.6, 0.01)){
   allo_size_effects = c(allo_size_effects, median(plogis(allogrooming_full_posterior[,"b_Intercept"] + allogrooming_full_posterior[,"b_size.1"] * i) - 
@@ -65,7 +95,7 @@ ggplot(df_effects, aes(x=Size_ratio, y=Effect)) +
   theme_classic()
 
 #### Figures ####
-allo_box <- ggplot(allogrooming, aes(x=treatment, y=proportion, fill=wood)) + 
+allo_box <- ggplot(allogrooming_plus, aes(x=treatment, y=proportion, fill=wood)) + 
   geom_boxplot(varwidth = TRUE) +
   ggtitle("a)") +
   theme_classic() +
@@ -81,7 +111,7 @@ allo_box <- ggplot(allogrooming, aes(x=treatment, y=proportion, fill=wood)) +
 allo_box
 
 
-allo_point <- ggplot(allogrooming, aes(x=size.1, y=proportion)) +
+allo_point <- ggplot(allogrooming, aes(x=size.1, y=proportion, color=inbred)) +
   geom_point() +
   ggtitle("a)") +
   theme_classic() +
@@ -89,7 +119,7 @@ allo_point <- ggplot(allogrooming, aes(x=size.1, y=proportion)) +
        y="Allogrooming towards newcomer \n (proportion time)") +
   theme(axis.text=element_text(size=12),
         axis.title=element_text(size=14))
-# allo_point
+allo_point
 
 allo_hdi_treat_coef <- plot(hdi(allogrooming_full_posterior[,"b_treatment1"])) + 
   scale_fill_manual(values=c("#33cdc4", "#e0f3db")) +
@@ -123,7 +153,9 @@ allo_hdi_size_coef <- plot(hdi(allogrooming_full_posterior[,"b_size.1"])) +
 
 ((allo_box | allo_point) / (allo_hdi_treat_coef | allo_hdi_int_coef | allo_hdi_size_coef)) + plot_layout(heights = c(3, 1))
 
-ggsave("allogrooming_plots.png", width=11, height=7)
+(allo_box | (allo_hdi_int_coef / allo_hdi_treat_coef))
+
+ggsave("allogrooming_plots_new.png", width=11, height=7)
 
 
 #### Summary stats ####
@@ -132,3 +164,4 @@ allo_inclusion
 hdi(allogrooming_full_posterior[,"b_treatment1"])
 hdi(allogrooming_full_posterior[,"b_treatment1:wood_typeD"])
 hdi(allogrooming_full_posterior[,"b_size.1"])
+

@@ -4,16 +4,11 @@ pp_check(antennation_null)
 pp_check(antennation_treat, "stat_grouped", group="treatment")
 # pp_check(antennation_size, "stat_grouped", group="size.1")
 
-ant_all <- mcmc_areas(antennation_all, 
-                       pars = c("b_treatment1", "b_treatment1:wood_typeD", "b_size.1", "b_treatment1:size.1"),
-                       prob=0.89) +
-  ggtitle("Full")
-ant_all
 
 ant_full <- mcmc_areas(antennation_full, 
-                        pars = c("b_treatment1", "b_treatment1:wood_typeD", "b_size.1"),
+                        pars = c("b_treatment1", "b_treatment1:wood_typeD", "b_size.1" , "b_inbred1"),
                         prob=0.89) +
-  ggtitle("Full")
+  ggtitle("With inbreeding")
 ant_full
 
 ant_treatment <- mcmc_areas(antennation_treat,
@@ -42,10 +37,19 @@ null_p <- mcmc_areas(antennation_null, prob=0.89) +
 
 ((ant_full | ant_noint) / (ant_treatment | ant_size))
 
+ant_noinbred <- mcmc_areas(antennation_noinbred, 
+                       pars = c("b_treatment1", "b_treatment1:wood_typeD", "b_size.1"),
+                       prob=0.89) +
+  ggtitle("Without inbreeding")
+
+ant_full | ant_noinbred
+
 comparison <- bayesfactor_models(antennation_full, antennation_treat, antennation_treatonly, antennation_noint, antennation_size, denominator = antennation_null)
 comparison
 inclusion <- bayesfactor_inclusion(comparison)
 inclusion
+
+bayes_factor(antennation_noinbred, antennation_full)
 
 rope_size <- bayesfactor_parameters(antennation_size, null=c(-1,1))
 plot(rope_size)

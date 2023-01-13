@@ -1,3 +1,11 @@
+antennation <- read.csv("Data/antennation_all.csv")
+antennation$proportion <- antennation$proportion/100 # make percentages proportions
+antennation$day <- as.factor(antennation$day)
+antennation$code <- as.factor(antennation$code)
+antennation$treatment <- as.factor(antennation$treatment)
+antennation$wood_type <- as.factor(antennation$wood)
+antennation$inbred <- as.factor(antennation$inbred)
+
 options(buildtools.check = function(action) TRUE) # Prevents opening of dialog box to ask about re-starting R between each model run.
 priors <- prior(normal(0, 2.5), class="b")
 # Run garbage collection (gc()) between running models to prevent brms crashing R.
@@ -5,9 +13,9 @@ priors <- prior(normal(0, 2.5), class="b")
 gc()
 antennation_full <- brm(proportion ~ 
                            treatment + treatment:wood_type +
-                           size.1 +
+                           size.1 + inbred +
                            (1 | day) + (1 | code) + (1|order),
-                         data = antennation,
+                         data = antennation %>% filter(!is.na(inbred)),
                          family = zero_inflated_beta(),
                          prior = priors,
                          save_all_pars = TRUE,
@@ -20,9 +28,27 @@ saveRDS(antennation_full, "antennation_full.Rds")
 antennation_full <- readRDS("antennation_full.Rds")
 antennation_full_posterior <- as.matrix(antennation_full)
 
+gc()
+antennation_noinbred <- brm(proportion ~ 
+                          treatment + treatment:wood_type +
+                          size.1 + 
+                          (1 | day) + (1 | code) + (1|order),
+                        data = antennation,
+                        family = zero_inflated_beta(),
+                        prior = priors,
+                        save_all_pars = TRUE,
+                        iter = 5000,
+                        cores = 4,
+                        control = list(adapt_delta = 0.99,
+                                       max_treedepth = 15))
+antennation_noinbred_posterior <- as.matrix(antennation_noinbred)
+saveRDS(antennation_noinbred, "antennation_noinbred.Rds")
+antennation_noinbred <- readRDS("antennation_noinbred.Rds")
+antennation_noinbred_posterior <- as.matrix(antennation_noinbred)
+
 antennation_noint <- brm(proportion ~ 
                             treatment +
-                            size.1 +
+                            size.1 + inbred +
                             (1 | day) + (1 | code) + (1|order),
                           data = antennation,
                           family = zero_inflated_beta(),
@@ -39,7 +65,7 @@ antennation_noint_posterior <- as.matrix(antennation_noint)
 
 gc()
 antennation_treat <- brm(proportion ~ 
-                            treatment + treatment:wood_type +
+                            treatment + treatment:wood_type + inbred +
                             (1|day) + (1|code) + (1|order),
                           data = antennation,
                           family = zero_inflated_beta(),
@@ -56,7 +82,7 @@ antennation_treat_posterior <- as.matrix(antennation_treat)
 
 gc()
 antennation_treatonly <- brm(proportion ~ 
-                           treatment +
+                           treatment + inbred +
                            (1|day) + (1|code) + (1|order),
                          data = antennation,
                          family = zero_inflated_beta(),
@@ -73,7 +99,7 @@ antennation_treatonly_posterior <- as.matrix(antennation_treatonly)
 
 gc()
 antennation_size <- brm(proportion ~ 
-                           size.1 +
+                           size.1 + inbred +
                            (1|day) + (1|code) + (1|order),
                          data = antennation,
                          family = zero_inflated_beta(),
